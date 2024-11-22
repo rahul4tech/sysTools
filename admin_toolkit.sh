@@ -275,8 +275,20 @@ function update_flatpak_packages() {
 function disable_notifications_for_users() {
   echo "Disabling notifications for all non-admin users..."
 
+  # Ensure dbus-x11 is installed
+  if ! dpkg -l | grep -q dbus-x11; then
+    echo "dbus-x11 is not installed. Installing it now..."
+    apt update && apt install -y dbus-x11
+    if [ $? -ne 0 ]; then
+      echo "Failed to install dbus-x11. Exiting."
+      exit 1
+    fi
+  else
+    echo "dbus-x11 is already installed."
+  fi
+
   # Get the list of non-admin users (UID >= 1000, not in 'sudo' group)
-  non_admin_users=$(awk -F':' '{ if ($3 >= 1000 && $3 < 65534) print $1 }' /etc/passwd | while read user; do
+  non_admin_users=$(awk -F':' '{ if ($3 >= 1000 && $3 < 65534) print $1 }' /etc/passwd | while read -r user; do
     if ! groups "$user" | grep -q sudo; then
       echo "$user"
     fi
@@ -286,22 +298,22 @@ function disable_notifications_for_users() {
   for user in $non_admin_users; do
     echo "Disabling notifications for user: $user"
 
-    # Ensure the user's DConf configuration directory exists
-    sudo -u "$user" mkdir -p /home/"$user"/.config/dconf/user.d
+    # Check if the user's home directory exists
+    if [ -d "/home/$user" ]; then
+      # Ensure the user's DConf directory exists
+      sudo -u "$user" mkdir -p /home/"$user"/.config/dconf
 
-    # Write the default setting to the user's DConf configuration file
-    sudo -u "$user" bash -c "cat > /home/$user/.config/dconf/user.d/00-notifications.ini <<EOF
-[org/gnome/desktop/notifications]
-show-banners=false
-EOF"
+      # Use dbus-launch to apply the setting via gsettings
+      sudo -u "$user" dbus-launch gsettings set org.gnome.desktop.notifications show-banners false
 
-    # Ensure the DConf database is applied when the user logs into GNOME
-    sudo -u "$user" touch /home/"$user"/.config/dconf/user  # Force GNOME to re-read settings
+      echo "Notifications disabled for user: $user"
+    else
+      echo "Home directory for user $user does not exist. Skipping."
+    fi
   done
 
-  echo "Notification settings have been written for all non-admin users. Users can re-enable them if needed."
+  echo "Notification settings have been updated for all non-admin users."
 }
-
 
 
 
