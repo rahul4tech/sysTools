@@ -81,6 +81,33 @@ EOF
   echo "Network changes have been restricted for standard users."
 }
 
+# Function to disable WiFi by blacklisting the driver
+function disable_wifi_blacklist() {
+  echo "Disabling WiFi by blacklisting the iwlwifi driver and its dependencies."
+
+  # Create a custom blacklist file for WiFi drivers
+  sudo tee /etc/modprobe.d/blacklist-wifi.conf <<EOF
+# Custom blacklist to disable WiFi
+blacklist iwlwifi
+blacklist iwldvm
+blacklist iwlmvm
+blacklist mac80211
+blacklist cfg80211
+EOF
+
+  echo "WiFi has been disabled by blacklisting the driver. A reboot is required to apply the changes."
+}
+
+# Function to enable WiFi by removing the blacklist
+function enable_wifi_blacklist() {
+  echo "Enabling WiFi by removing the custom blacklist for iwlwifi and its dependencies."
+
+  # Remove the custom blacklist file
+  sudo rm -f /etc/modprobe.d/blacklist-wifi.conf
+
+  echo "WiFi has been enabled. A reboot is required to fully restore functionality."
+}
+
 # Function to remove Deja Dup (Backups) and clean up
 function remove_deja_dup() {
   echo "You chose to remove Deja Dup (Backups) and clean up configuration files."
@@ -100,6 +127,10 @@ function remove_deja_dup() {
 # Function to fully update the system
 function update_system_fully() {
   echo "You chose to fully update the system to ensure no pending updates."
+
+  # Remove old versions of Google Chrome (to avoid update conflicts)
+  echo "Removing old versions of Google Chrome..."
+  sudo apt remove --purge -y google-chrome-stable google-chrome-beta google-chrome-unstable || true
 
   # Update package lists and upgrade all packages
   sudo apt update
@@ -122,6 +153,22 @@ function update_system_fully() {
   sudo apt clean
 
   echo "System fully updated. There should be no pending updates in the GUI."
+}
+
+# Function to update Google Chrome
+function update_google_chrome() {
+  echo "You chose to update Google Chrome to the latest version."
+
+  # Add the official Google Chrome repository
+  echo "Adding the official Google Chrome repository..."
+  wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+  echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' | sudo tee /etc/apt/sources.list.d/google-chrome.list
+
+  # Update package lists and install the latest version of Google Chrome
+  sudo apt update
+  sudo apt install -y google-chrome-stable
+
+  echo "Google Chrome has been updated to the latest version."
 }
 
 # Function to forget a WiFi network and reboot in 5 seconds
@@ -167,13 +214,14 @@ function display_menu() {
   echo "1) Downgrade a user to standard"
   echo "2) Create a new admin account and hide it"
   echo "3) Restrict network changes for standard users"
-  echo "4) Remove Deja Dup (Backups) and clean up"
-  echo "5) Fully update the system (apply all updates)"
-  echo "6) Forget a WiFi network and reboot"
-  echo "7) Perform both 1 and 2"
-  echo "8) Perform both 2 and 3"
-  echo "9) Perform all (1, 2, 3, 4, 5, and 6)"
-  echo "10) Exit"
+  echo "4) Disable WiFi by blacklisting driver"
+  echo "5) Enable WiFi by removing driver blacklist"
+  echo "6) Remove Deja Dup (Backups) and clean up"
+  echo "7) Fully update the system"
+  echo "8) Update Google Chrome to the latest version"
+  echo "9) Forget a WiFi network and reboot"
+  echo "10) Perform all (1, 2, 3, 4, 6, 7, 8, and 9)"
+  echo "11) Exit"
 }
 
 # Main script execution
@@ -195,31 +243,34 @@ function main() {
         restrict_network_changes
         ;;
       4)
-        remove_deja_dup
+        disable_wifi_blacklist
         ;;
       5)
-        update_system_fully
+        enable_wifi_blacklist
         ;;
       6)
-        forget_wifi_and_reboot
+        remove_deja_dup
         ;;
       7)
-        downgrade_user
-        create_admin_user
+        update_system_fully
         ;;
       8)
-        create_admin_user
-        restrict_network_changes
+        update_google_chrome
         ;;
       9)
-        downgrade_user
-        create_admin_user
-        restrict_network_changes
-        remove_deja_dup
-        update_system_fully
         forget_wifi_and_reboot
         ;;
       10)
+        downgrade_user
+        create_admin_user
+        restrict_network_changes
+        disable_wifi_blacklist
+        remove_deja_dup
+        update_system_fully
+        update_google_chrome
+        forget_wifi_and_reboot
+        ;;
+      11)
         echo "Exiting the script. Goodbye!"
         exit 0
         ;;
