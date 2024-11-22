@@ -287,9 +287,6 @@ function disable_notifications_for_users() {
     echo "Disabling notifications for user: $user"
 
     # Ensure the user's DConf directory exists
-    sudo -u "$user" mkdir -p /home/"$user"/.config/dconf
-
-    # try to create user.d directory if it does not exist
     sudo -u "$user" mkdir -p /home/"$user"/.config/dconf/user.d
 
     # Write the default setting to the user's DConf database
@@ -298,12 +295,13 @@ function disable_notifications_for_users() {
 show-banners=false
 EOF"
 
-    # Apply the new settings to the user's DConf database
-    sudo -u "$user" dconf update || echo "Failed to update DConf for $user"
+    # Apply the local settings by updating only the user's DConf database
+    sudo -u "$user" bash -c 'DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus" dconf update' || echo "Failed to update DConf for $user"
   done
 
   echo "Notification settings have been disabled for all non-admin users. Users can re-enable them if needed."
 }
+
 
 
 # Display menu options
