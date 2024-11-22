@@ -225,6 +225,16 @@ EOF"
   fi
 }
 
+# Function to update Snap packages
+function update_snap_packages() {
+  echo "Updating Snap packages..."
+  
+  # Update all Snap packages
+  sudo snap refresh
+  
+  echo "All Snap packages are up to date."
+}
+
 # Display menu options
 function display_menu() {
   echo "Select an operation to perform:"
@@ -239,8 +249,9 @@ function display_menu() {
   echo "9) Forget a WiFi network and reboot"
   echo "10) Disable LTS upgrade prompts"
   echo "11) Clear GUI update metadata"
-  echo "12) Perform all (1, 2, 3, 4, 6, 10, 11, 7, 8, and 9 last)"
-  echo "13) Exit"
+  echo "12) Perform all (1, 2, 3, 4, 6, 10, 11, 7, 8, 13, and 9 last)"
+  echo "13) Update Snap packages"
+  echo "14) Exit"
 }
 
 # Main script execution
@@ -295,9 +306,13 @@ function main() {
         clear_gui_metadata
         update_system_fully
         update_google_chrome
+        update_snap_packages
         forget_wifi_and_reboot
         ;;
       13)
+        update_snap_packages
+        ;;
+      14)
         echo "Exiting the script. Goodbye!"
         exit 0
         ;;
