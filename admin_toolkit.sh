@@ -272,24 +272,32 @@ function update_flatpak_packages() {
 
 # Function to disable notifications for specific users or non-admin users
 function disable_notifications_for_users() {
-  echo "Disabling notifications for specified users or all non-admin users..."
+  echo "Disabling notifications for all non-admin users..."
 
-  # Get the list of non-admin users (users with UID >= 1000 and not in 'sudo' group)
+  # Get the list of non-admin users (UID >= 1000, not in 'sudo' group)
   non_admin_users=$(awk -F':' '{ if ($3 >= 1000 && $3 < 65534) print $1 }' /etc/passwd | while read user; do
     if ! groups "$user" | grep -q sudo; then
       echo "$user"
     fi
   done)
 
-  # Loop through each user to disable `show-banners`
+  # Loop through each user
   for user in $non_admin_users; do
     echo "Disabling notifications for user: $user"
-    sudo -u "$user" gsettings set org.gnome.desktop.notifications show-banners false || echo "Failed to apply setting for $user"
+
+    # Get the D-Bus session address for the user
+    user_bus=$(sudo -u "$user" bash -c 'dbus-launch echo $DBUS_SESSION_BUS_ADDRESS')
+    if [ -z "$user_bus" ]; then
+      echo "Failed to get D-Bus session for $user. Skipping..."
+      continue
+    fi
+
+    # Run the gsettings command with the user's D-Bus session
+    sudo -u "$user" DBUS_SESSION_BUS_ADDRESS="$user_bus" gsettings set org.gnome.desktop.notifications show-banners false || echo "Failed to apply setting for $user"
   done
 
   echo "Notification settings have been updated for all non-admin users."
 }
-
 
 
 # Display menu options
