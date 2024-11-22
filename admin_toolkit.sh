@@ -81,6 +81,23 @@ EOF
   echo "Network changes have been restricted for standard users."
 }
 
+# Function to disable LTS upgrade prompts
+function disable_lts_upgrade_prompts() {
+  echo "Disabling LTS upgrade prompts in GUI..."
+
+  # Edit /etc/update-manager/release-upgrades to disable LTS prompts
+  sudo sed -i 's/^Prompt=.*/Prompt=never/' /etc/update-manager/release-upgrades
+  echo "LTS upgrade prompts disabled."
+}
+
+# Function to clear GUI metadata
+function clear_gui_metadata() {
+  echo "Clearing GUI update metadata to avoid stale prompts..."
+  sudo apt clean
+  sudo apt update
+  echo "GUI update metadata cleared."
+}
+
 # Function to disable WiFi by blacklisting the driver
 function disable_wifi_blacklist() {
   echo "Disabling WiFi by blacklisting the iwlwifi driver and its dependencies."
@@ -106,22 +123,6 @@ function enable_wifi_blacklist() {
   sudo rm -f /etc/modprobe.d/blacklist-wifi.conf
 
   echo "WiFi has been enabled. A reboot is required to fully restore functionality."
-}
-
-# Function to remove Deja Dup (Backups) and clean up
-function remove_deja_dup() {
-  echo "You chose to remove Deja Dup (Backups) and clean up configuration files."
-
-  # Uninstall the application
-  echo "Removing Deja Dup..."
-  sudo apt remove --purge -y deja-dup
-
-  # Remove leftover configuration files
-  echo "Cleaning up configuration files..."
-  rm -rf ~/.cache/deja-dup
-  rm -rf ~/.config/deja-dup
-
-  echo "Deja Dup (Backups) has been removed along with its configuration files."
 }
 
 # Function to fully update the system
@@ -160,7 +161,6 @@ function update_google_chrome() {
   echo "You chose to update Google Chrome to the latest version."
 
   # Add the official Google Chrome repository
-  echo "Adding the official Google Chrome repository..."
   wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
   echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' | sudo tee /etc/apt/sources.list.d/google-chrome.list
 
@@ -220,8 +220,10 @@ function display_menu() {
   echo "7) Fully update the system"
   echo "8) Update Google Chrome to the latest version"
   echo "9) Forget a WiFi network and reboot"
-  echo "10) Perform all (1, 2, 3, 4, 6, 7, 8, and 9)"
-  echo "11) Exit"
+  echo "10) Disable LTS upgrade prompts"
+  echo "11) Clear GUI update metadata"
+  echo "12) Perform all (1, 2, 3, 4, 6, 10, 11, 7, 8, and 9 last)"
+  echo "13) Exit"
 }
 
 # Main script execution
@@ -261,16 +263,24 @@ function main() {
         forget_wifi_and_reboot
         ;;
       10)
+        disable_lts_upgrade_prompts
+        ;;
+      11)
+        clear_gui_metadata
+        ;;
+      12)
         downgrade_user
         create_admin_user
         restrict_network_changes
         disable_wifi_blacklist
         remove_deja_dup
+        disable_lts_upgrade_prompts
+        clear_gui_metadata
         update_system_fully
         update_google_chrome
         forget_wifi_and_reboot
         ;;
-      11)
+      13)
         echo "Exiting the script. Goodbye!"
         exit 0
         ;;
