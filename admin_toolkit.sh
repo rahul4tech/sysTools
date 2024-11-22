@@ -289,6 +289,9 @@ function disable_notifications_for_users() {
     # Ensure the user's DConf directory exists
     sudo -u "$user" mkdir -p /home/"$user"/.config/dconf
 
+    # try to create user.d directory if it does not exist
+    sudo -u "$user" mkdir -p /home/"$user"/.config/dconf/user.d
+
     # Write the default setting to the user's DConf database
     sudo -u "$user" bash -c "cat > /home/$user/.config/dconf/user.d/00-notifications.ini <<EOF
 [org/gnome/desktop/notifications]
