@@ -335,7 +335,7 @@ function clear_history_for_non_admin_users() {
     chrome_dir="/home/$user/.config/google-chrome/Default"
     if [ -d "$chrome_dir" ]; then
       echo "Clearing Chrome history for user: $user"
-      sudo -u "$user" rm -f "$chrome_dir/History" "$chrome_dir/History-journal"
+      sudo -u "$user" rm -f "$chrome_dir/History" "$chrome_dir/History-journal" || true
       echo "Chrome history cleared for user: $user"
     else
       echo "Chrome profile not found for user: $user. Skipping."
@@ -344,11 +344,16 @@ function clear_history_for_non_admin_users() {
 
   echo "History clearing completed for all non-admin users."
 
-  # Kill all Chrome processes
-  echo "Killing all Chrome processes..."
-  pkill chrome
-  echo "All Chrome processes have been terminated."
+  # Check if Chrome is running and kill it
+  if pgrep chrome &>/dev/null; then
+    echo "Killing all Chrome processes..."
+    pkill chrome
+    echo "All Chrome processes have been terminated."
+  else
+    echo "No Chrome processes found. Skipping kill step."
+  fi
 }
+
 
 
 
