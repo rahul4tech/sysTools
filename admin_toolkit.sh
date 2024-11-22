@@ -270,7 +270,8 @@ function update_flatpak_packages() {
   echo "All Flatpak packages are up to date."
 }
 
-# Function to disable notifications for specific users or non-admin users
+
+# Function to disable notifications for all non-admin users
 function disable_notifications_for_users() {
   echo "Disabling notifications for all non-admin users..."
 
@@ -279,24 +280,26 @@ function disable_notifications_for_users() {
     if ! groups "$user" | grep -q sudo; then
       echo "$user"
     fi
-  done)
+  done | tr '\n' ' ') # Ensure output is a single line
 
   # Loop through each user
   for user in $non_admin_users; do
     echo "Disabling notifications for user: $user"
 
-    # Get the D-Bus session address for the user
-    user_bus=$(sudo -u "$user" bash -c 'dbus-launch echo $DBUS_SESSION_BUS_ADDRESS')
-    if [ -z "$user_bus" ]; then
-      echo "Failed to get D-Bus session for $user. Skipping..."
-      continue
-    fi
+    # Ensure the user's DConf directory exists
+    sudo -u "$user" mkdir -p /home/"$user"/.config/dconf
 
-    # Run the gsettings command with the user's D-Bus session
-    sudo -u "$user" DBUS_SESSION_BUS_ADDRESS="$user_bus" gsettings set org.gnome.desktop.notifications show-banners false || echo "Failed to apply setting for $user"
+    # Write the default setting to the user's DConf database
+    sudo -u "$user" bash -c "cat > /home/$user/.config/dconf/user.d/00-notifications.ini <<EOF
+[org/gnome/desktop/notifications]
+show-banners=false
+EOF"
+
+    # Apply the new settings to the user's DConf database
+    sudo -u "$user" dconf update || echo "Failed to update DConf for $user"
   done
 
-  echo "Notification settings have been updated for all non-admin users."
+  echo "Notification settings have been disabled for all non-admin users. Users can re-enable them if needed."
 }
 
 
