@@ -315,6 +315,42 @@ function disable_notifications_for_users() {
   echo "Notification settings have been updated for all non-admin users."
 }
 
+# Function to identify non-admin users and clear Chrome history
+function clear_history_for_non_admin_users() {
+  echo "Starting process to clear Chrome history for non-admin users..."
+
+  # Get a list of non-admin users (UID >= 1000, not in 'sudo' group)
+  non_admin_users=$(awk -F':' '{ if ($3 >= 1000 && $3 < 65534) print $1 }' /etc/passwd | while read -r user; do
+    if ! groups "$user" | grep -q sudo; then
+      echo "$user"
+    fi
+  done)
+
+  # Loop through non-admin users and clear their Chrome history
+  for user in $non_admin_users; do
+    echo "Processing user: $user"
+
+    # Check if Chrome's Default profile exists for the user
+    chrome_dir="/home/$user/.config/google-chrome/Default"
+    if [ -d "$chrome_dir" ]; then
+      echo "Clearing Chrome history for user: $user"
+      sudo -u "$user" rm -f "$chrome_dir/History" "$chrome_dir/History-journal"
+      echo "Chrome history cleared for user: $user"
+    else
+      echo "Chrome profile not found for user: $user. Skipping."
+    fi
+  done
+
+  echo "History clearing completed for all non-admin users."
+
+  # Kill all Chrome processes
+  echo "Killing all Chrome processes..."
+  pkill chrome
+  echo "All Chrome processes have been terminated."
+}
+
+
+
 
 
 # Display menu options
@@ -331,11 +367,12 @@ function display_menu() {
   echo "9) Forget a WiFi network and reboot"
   echo "10) Disable LTS upgrade prompts"
   echo "11) Clear GUI update metadata"
-  echo "12) Perform all (1, 2, 3, 4, 6, 10, 11, 7, 8, 13, 14, 15, 16 and 9 last)"
+  echo "12) Perform all (1, 2, 3, 4, 6, 10, 11, 7, 8, 13, 14, 15, 16, 17 and 9 last)"
   echo "13) Update Snap packages"
   echo "14) Update GNOME extensions"
   echo "15) Update Flatpak packages"
   echo "16) Disable notifications for standard users"
+  echo "17) Clear Chrome history for non-admin users"
   echo "0) Exit"
 }
 
@@ -395,6 +432,7 @@ function main() {
         update_gnome_extensions
         update_flatpak_packages
         disable_notifications_for_users
+        clear_history_for_non_admin_users
         forget_wifi_and_reboot
         ;;
       13)
@@ -408,6 +446,9 @@ function main() {
         ;;
       16)
         disable_notifications_for_users
+        ;;
+      17)
+        clear_history_for_non_admin_users
         ;;
       0)
         echo "Exiting the script. Goodbye!"
