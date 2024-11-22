@@ -122,7 +122,8 @@ function enable_wifi_blacklist() {
   # Remove the custom blacklist file
   sudo rm -f /etc/modprobe.d/blacklist-wifi.conf
 
-  echo "WiFi has been enabled. A reboot is required to fully restore functionality."
+  echo "WiFi has been enabled. A reboot is required to fully restore functionality. Rebooting.."
+  sleep 3 && sudo reboot
 }
 
 # Function to fully update the system
