@@ -189,41 +189,69 @@ function update_google_chrome() {
   echo "Google Chrome has been updated to the latest version."
 }
 
-# Function to forget a WiFi network and reboot in 5 seconds
+# Function to remove connections by number by matching UUID reading by 4 hyphens
 function forget_wifi_and_reboot() {
-  echo "You chose to forget a WiFi network and schedule a reboot."
+  echo "You chose to forget multiple WiFi networks and schedule a reboot."
 
-  # List all saved WiFi networks
+  # Declare an array to store connections
+  connections=()
+
+  # List all saved WiFi networks with SSIDs and UUIDs
   echo "Available saved WiFi networks:"
-  nmcli connection show | grep wifi
-  
-  # Prompt user for the SSID to forget
-  read -p "Enter the WiFi SSID to forget: " ssid
-  
-  # Check if the SSID exists
-  if nmcli connection show | grep -q "$ssid"; then
-    echo "Creating a temporary script to forget WiFi and reboot..."
-    
-    # Create a temporary script to forget WiFi and reboot
-    tmp_script="/tmp/forget_wifi_and_reboot.sh"
-    sudo bash -c "cat <<EOF > $tmp_script
+  while read -r line; do
+    # echo "Debug: Processing line: $line"  # Debug each line
+    uuid=$(echo "$line" | grep -oE '[a-f0-9-]{36}' || true)  # Extract valid UUID
+    if [ -n "$uuid" ]; then
+      ssid=$(echo "$line" | sed "s/$uuid.*//" | sed 's/[[:space:]]*$//' || true)  # Extract SSID
+      connections+=("$ssid|$uuid")  # Store SSID and UUID in the array
+      printf "%-3d SSID: %-30s UUID: %s\n" "${#connections[@]}" "$ssid" "$uuid"
+    fi
+  done < <(nmcli connection show)
+
+  # Check if connections are available
+  if [ ${#connections[@]} -eq 0 ]; then
+    echo "No saved WiFi networks found."
+    return
+  fi
+
+  # Debug: Show connections array
+  # echo "Debug: Final connections array: ${connections[@]}"
+
+  # Prompt user to select indices
+  echo "Enter the indices of the WiFi networks to forget, separated by spaces (e.g., '1 2 3'):"
+  read -p "Indices: " indices
+
+  # Create the temporary script for delayed deletion and reboot
+  tmp_script="/tmp/forget_wifi_and_reboot.sh"
+  sudo bash -c "cat <<EOF > $tmp_script
 #!/bin/bash
-nmcli connection delete \"$ssid\"
-echo \"WiFi network '$ssid' forgotten. Rebooting now...\"
-/sbin/reboot
+echo ''
 EOF"
 
-    # Make the temporary script executable
-    sudo chmod +x "$tmp_script"
+  # Process each selected index
+  for index in $indices; do
+    if [[ $index -gt 0 && $index -le ${#connections[@]} ]]; then
+      connection="${connections[$((index-1))]}"  # Get the connection by index
+      ssid=$(echo "$connection" | cut -d'|' -f1)
+      uuid=$(echo "$connection" | cut -d'|' -f2)
+      echo "Adding command to forget WiFi network: SSID=\"$ssid\", UUID=\"$uuid\"..."
+      sudo bash -c "echo nmcli connection delete uuid \"$uuid\" >> $tmp_script"
+    else
+      echo "Invalid selection: $index. Skipping."
+    fi
+  done
 
-    # Schedule the script to run in 5 seconds
-    echo "Scheduling the WiFi forget and reboot in 5 seconds..."
-    (sleep 5 && bash $tmp_script) &
+  # Add reboot command to the script
+  sudo bash -c "echo \"echo 'Rebooting now...'; /sbin/reboot\" >> $tmp_script"
 
-    echo "The WiFi forget and reboot have been scheduled. Disconnecting will occur soon."
-  else
-    echo "WiFi network '$ssid' not found. No action taken."
-  fi
+  # Make the temporary script executable
+  sudo chmod +x "$tmp_script"
+
+  # Schedule the script to run in 5 seconds
+  echo "Scheduling the WiFi forget and reboot in 5 seconds..."
+  (sleep 5 && bash $tmp_script) &
+
+  echo "The WiFi forget and reboot have been scheduled. Disconnecting will occur soon."
 }
 
 # Function to update Snap packages
@@ -416,7 +444,9 @@ function main() {
         update_google_chrome
         ;;
       9)
+        set +e # Allow the script to continue even if forget_wifi_and_reboot fails
         forget_wifi_and_reboot
+        set -e # Re-enable exit on error
         ;;
       10)
         disable_lts_upgrade_prompts
@@ -439,7 +469,9 @@ function main() {
         update_flatpak_packages
         disable_notifications_for_users
         clear_history_for_non_admin_users
+        set +e  # Allow the script to continue even if forget_wifi_and_reboot fails
         forget_wifi_and_reboot
+        set -e  # Re-enable exit on error
         ;;
       13)
         update_snap_packages
