@@ -295,12 +295,13 @@ function disable_notifications_for_users() {
 show-banners=false
 EOF"
 
-    # Directly apply the user's local settings without running `dconf update`
-    sudo -u "$user" bash -c 'dconf write /org/gnome/desktop/notifications/show-banners false' || echo "Failed to apply setting for $user"
+    # Apply the local settings to the DConf database
+    sudo -u "$user" dconf update || echo "Failed to update DConf for $user"
   done
 
   echo "Notification settings have been disabled for all non-admin users. Users can re-enable them if needed."
 }
+
 
 
 
