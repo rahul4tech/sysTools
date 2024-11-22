@@ -254,6 +254,43 @@ function update_gnome_extensions() {
   echo "All GNOME extensions are updated."
 }
 
+# Function to update Flatpak packages
+function update_flatpak_packages() {
+  echo "Updating Flatpak packages..."
+
+  # Ensure Flatpak is installed
+  if ! command -v flatpak &>/dev/null; then
+    echo "Flatpak command not found. Installing..."
+    sudo apt install -y flatpak
+  fi
+
+  # Update all Flatpak packages
+  flatpak update -y
+
+  echo "All Flatpak packages are up to date."
+}
+
+# Function to disable notifications for specific users or non-admin users
+function disable_notifications_for_users() {
+  echo "Disabling notifications for specified users or all non-admin users..."
+
+  # Get the list of non-admin users (users with UID >= 1000 and not in 'sudo' group)
+  non_admin_users=$(awk -F':' '{ if ($3 >= 1000 && $3 < 65534) print $1 }' /etc/passwd | while read user; do
+    if ! groups "$user" | grep -q sudo; then
+      echo "$user"
+    fi
+  done)
+
+  # Loop through each user to disable `show-banners`
+  for user in $non_admin_users; do
+    echo "Disabling notifications for user: $user"
+    sudo -u "$user" gsettings set org.gnome.desktop.notifications show-banners false || echo "Failed to apply setting for $user"
+  done
+
+  echo "Notification settings have been updated for all non-admin users."
+}
+
+
 
 # Display menu options
 function display_menu() {
@@ -269,10 +306,12 @@ function display_menu() {
   echo "9) Forget a WiFi network and reboot"
   echo "10) Disable LTS upgrade prompts"
   echo "11) Clear GUI update metadata"
-  echo "12) Perform all (1, 2, 3, 4, 6, 10, 11, 7, 8, 13, 14, and 9 last)"
+  echo "12) Perform all (1, 2, 3, 4, 6, 10, 11, 7, 8, 13, 14, 15, 16 and 9 last)"
   echo "13) Update Snap packages"
   echo "14) Update GNOME extensions"
-  echo "15) Exit"
+  echo "15) Update Flatpak packages"
+  echo "16) Disable notifications for standard users"
+  echo "0) Exit"
 }
 
 # Main script execution
@@ -329,6 +368,8 @@ function main() {
         update_google_chrome
         update_snap_packages
         update_gnome_extensions
+        update_flatpak_packages
+        disable_notifications_for_users
         forget_wifi_and_reboot
         ;;
       13)
@@ -337,7 +378,13 @@ function main() {
       14)
         update_gnome_extensions
         ;;
-      15)
+       15)
+        update_flatpak_packages
+        ;;
+      16)
+        disable_notifications_for_users
+        ;;
+      0)
         echo "Exiting the script. Goodbye!"
         exit 0
         ;;
