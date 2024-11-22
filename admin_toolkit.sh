@@ -156,6 +156,23 @@ function update_system_fully() {
   echo "System fully updated. There should be no pending updates in the GUI."
 }
 
+# Function to remove Deja Dup (Backups) and clean up
+function remove_deja_dup() {
+  echo "You chose to remove Deja Dup (Backups) and clean up configuration files."
+
+  # Uninstall the application
+  echo "Removing Deja Dup..."
+  sudo apt remove --purge -y deja-dup
+
+  # Remove leftover configuration files
+  echo "Cleaning up configuration files..."
+  rm -rf ~/.cache/deja-dup
+  rm -rf ~/.config/deja-dup
+
+  echo "Deja Dup (Backups) has been removed along with its configuration files."
+}
+
+
 # Function to update Google Chrome
 function update_google_chrome() {
   echo "You chose to update Google Chrome to the latest version."
