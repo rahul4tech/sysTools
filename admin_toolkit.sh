@@ -286,17 +286,17 @@ function disable_notifications_for_users() {
   for user in $non_admin_users; do
     echo "Disabling notifications for user: $user"
 
-    # Ensure the user's DConf directory exists
+    # Ensure the user's DConf configuration directory exists
     sudo -u "$user" mkdir -p /home/"$user"/.config/dconf/user.d
 
-    # Write the default setting directly to the user's DConf configuration
+    # Write the default setting to the user's DConf configuration file
     sudo -u "$user" bash -c "cat > /home/$user/.config/dconf/user.d/00-notifications.ini <<EOF
 [org/gnome/desktop/notifications]
 show-banners=false
 EOF"
 
-    # Skip running `dconf update` or `dconf write` to avoid system-level interaction
-    echo "Configuration file written for user: $user"
+    # Ensure the DConf database is applied when the user logs into GNOME
+    sudo -u "$user" touch /home/"$user"/.config/dconf/user  # Force GNOME to re-read settings
   done
 
   echo "Notification settings have been written for all non-admin users. Users can re-enable them if needed."
