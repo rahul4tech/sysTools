@@ -235,6 +235,26 @@ function update_snap_packages() {
   echo "All Snap packages are up to date."
 }
 
+# Function to update GNOME extensions
+function update_gnome_extensions() {
+  echo "Updating GNOME extensions..."
+
+  # Ensure the gnome-shell-extensions package is installed
+  if ! command -v gnome-extensions &>/dev/null; then
+    echo "gnome-extensions command not found. Installing..."
+    sudo apt install -y gnome-shell-extensions
+  fi
+
+  # Update all enabled extensions
+  gnome-extensions list --enabled | while read -r ext; do
+    echo "Updating extension: $ext"
+    gnome-extensions update "$ext" || echo "Failed to update $ext"
+  done
+
+  echo "All GNOME extensions are updated."
+}
+
+
 # Display menu options
 function display_menu() {
   echo "Select an operation to perform:"
@@ -249,9 +269,10 @@ function display_menu() {
   echo "9) Forget a WiFi network and reboot"
   echo "10) Disable LTS upgrade prompts"
   echo "11) Clear GUI update metadata"
-  echo "12) Perform all (1, 2, 3, 4, 6, 10, 11, 7, 8, 13, and 9 last)"
+  echo "12) Perform all (1, 2, 3, 4, 6, 10, 11, 7, 8, 13, 14, and 9 last)"
   echo "13) Update Snap packages"
-  echo "14) Exit"
+  echo "14) Update GNOME extensions"
+  echo "15) Exit"
 }
 
 # Main script execution
@@ -307,12 +328,16 @@ function main() {
         update_system_fully
         update_google_chrome
         update_snap_packages
+        update_gnome_extensions
         forget_wifi_and_reboot
         ;;
       13)
         update_snap_packages
         ;;
       14)
+        update_gnome_extensions
+        ;;
+      15)
         echo "Exiting the script. Goodbye!"
         exit 0
         ;;
