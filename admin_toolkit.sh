@@ -461,6 +461,101 @@ EOF
   echo "✅ Firefox installed and proxy is locked globally."
 }
 
+function manage_chrome_blocklist() {
+  local policy_dir="/etc/opt/chrome/policies/managed"
+  local policy_file="$policy_dir/block.json"
+
+  # Ensure required tools
+  if ! command -v jq &>/dev/null; then
+    echo "Installing jq..."
+    sudo apt update && sudo apt install -y jq
+  fi
+
+  # Default blocklist
+  local default_urls=(
+    "https://mail.google.com"
+    "https://www.google.com/search"
+    "workspace.google.com"
+    "accounts.google.com"
+    "gmail.com"
+  )
+
+  # Ensure policy directory exists
+  sudo mkdir -p "$policy_dir"
+
+  local changed=false
+  local choice=""
+
+  if [ -f "$policy_file" ]; then
+    echo "📄 Existing blocklist:"
+    sudo jq -r '.URLBlocklist[]?' "$policy_file" || echo "(Empty or invalid format)"
+    echo
+
+    echo "Choose an option:"
+    echo "1) Add more URLs to the existing blocklist"
+    echo "2) Reset the blocklist (remove all)"
+    echo "3) Leave the current blocklist unchanged"
+    echo "4) View only (do nothing)"
+    read -p "Enter your choice [1/2/3/4]: " choice
+
+    case "$choice" in
+      2)
+        echo "Resetting blocklist to empty..."
+        sudo tee "$policy_file" > /dev/null <<EOF
+{
+  "URLBlocklist": []
+}
+EOF
+        changed=true
+        ;;
+      4)
+        echo "No changes made."
+        return
+        ;;
+    esac
+  else
+    echo "🆕 Creating default blocklist with preset URLs..."
+    local formatted_urls
+    formatted_urls=$(printf '"%s",\n' "${default_urls[@]}" | sed '$s/,$//')
+    sudo tee "$policy_file" > /dev/null <<EOF
+{
+  "URLBlocklist": [
+    $formatted_urls
+  ]
+}
+EOF
+    changed=true
+  fi
+
+  # Add more URLs if desired
+  if [[ "$choice" == "1" || ! -f "$policy_file" ]]; then
+    while true; do
+      read -p "Enter a URL to block (or press Enter to finish): " url
+      [ -z "$url" ] && break
+      echo "Adding: $url"
+      tmp_file=$(mktemp)
+      sudo jq --arg url "$url" '.URLBlocklist |= unique + [$url]' "$policy_file" > "$tmp_file" && sudo mv "$tmp_file" "$policy_file"
+      changed=true
+    done
+  fi
+
+  if [ "$changed" = true ]; then
+    echo "🔒 Chrome blocklist updated at: $policy_file"
+
+    # Ensure permissions are correct
+    sudo chown root:root "$policy_file"
+    sudo chmod 644 "$policy_file"
+    sudo chmod 755 "$policy_dir"
+
+    echo "✅ Changes saved. Visit chrome://policy in Chrome and click 'Reload Policies' to verify."
+  else
+    echo "✅ No changes were made to the blocklist."
+  fi
+
+  echo "Returning to the menu..."
+  sleep 2
+}
+
 
 
 
@@ -487,6 +582,7 @@ function display_menu() {
   echo "16) Disable notifications for standard users"
   echo "17) Clear Chrome history for non-admin users"
   echo "18) Set up a globally locked Firefox proxy (APT version)"
+  echo "19) Configure Chrome site blocking policy"
   echo "0) Exit"
 }
 
@@ -570,6 +666,9 @@ function main() {
         ;;
       18)
         setup_global_firefox_proxy
+        ;;
+      19)
+        manage_chrome_blocklist
         ;;
       0)
         echo "Exiting the script. Goodbye!"
