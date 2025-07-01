@@ -382,6 +382,85 @@ function clear_history_for_non_admin_users() {
   fi
 }
 
+# Function to remove Snap Firefox, install APT version, and configure locked proxy
+function setup_global_firefox_proxy() {
+  echo "You chose to set up a globally locked Firefox proxy."
+
+  echo "→ Ensuring Firefox is not running..."
+  sudo pkill -f firefox || true
+
+  # Prompt for proxy settings
+  read -p "Enter the proxy host (e.g., 127.0.0.1): " proxy_host
+  read -p "Enter the proxy port (e.g., 8080): " proxy_port
+
+  # Remove Snap Firefox if it exists
+  if snap list | grep -q "^firefox"; then
+    echo "→ Removing Snap-based Firefox..."
+    sudo snap remove firefox
+    sudo rm -f /snap/bin/firefox
+  else
+    echo "→ Snap Firefox is not installed."
+  fi
+
+  # Remove APT redirector package if present
+  if dpkg -l | grep -q "firefox\s\+1:snap"; then
+    echo "→ Removing APT Snap-redirector package..."
+    sudo apt remove -y firefox
+  fi
+
+  # Prevent APT from reinstalling Snap version
+  echo "→ Blocking Snap Firefox from reinstalling via APT..."
+  sudo tee /etc/apt/preferences.d/firefox-no-snap > /dev/null <<EOF
+Package: firefox
+Pin: release o=Ubuntu*
+Pin-Priority: -1
+EOF
+
+  # Add Mozilla PPA if missing
+  if ! grep -rq "mozillateam/ppa" /etc/apt/sources.list.d/ /etc/apt/sources.list; then
+    echo "→ Adding Mozilla PPA..."
+    sudo add-apt-repository -y ppa:mozillateam/ppa
+  fi
+
+  # Prefer PPA Firefox over Snap-enabler package
+  echo "→ Prioritizing PPA version of Firefox..."
+  sudo tee /etc/apt/preferences.d/mozilla-firefox.pref > /dev/null <<EOF
+Package: firefox
+Pin: release o=LP-PPA-mozillateam
+Pin-Priority: 1001
+EOF
+
+  echo "→ Updating package lists..."
+  sudo apt update
+
+  echo "→ Installing Firefox (APT version)..."
+  sudo apt install -y firefox
+
+  # Backup existing policy if present
+  if [ -f /etc/firefox/policies/policies.json ]; then
+    sudo cp /etc/firefox/policies/policies.json /etc/firefox/policies/policies.json.bak
+    echo "→ Backed up existing policies.json to policies.json.bak"
+  fi
+
+  echo "→ Creating locked proxy policy..."
+  sudo mkdir -p /etc/firefox/policies
+  sudo tee /etc/firefox/policies/policies.json > /dev/null <<EOF
+{
+  "policies": {
+    "Proxy": {
+      "Mode": "manual",
+      "Locked": true,
+      "HTTPProxy": "$proxy_host:$proxy_port",
+      "SSLProxy": "$proxy_host:$proxy_port",
+      "NoProxy": "localhost, 127.0.0.1"
+    }
+  }
+}
+EOF
+
+  echo "✅ Firefox installed and proxy is locked globally."
+}
+
 
 
 
@@ -407,6 +486,7 @@ function display_menu() {
   echo "15) Update Flatpak packages"
   echo "16) Disable notifications for standard users"
   echo "17) Clear Chrome history for non-admin users"
+  echo "18) Set up a globally locked Firefox proxy (APT version)"
   echo "0) Exit"
 }
 
@@ -487,6 +567,9 @@ function main() {
         ;;
       17)
         clear_history_for_non_admin_users
+        ;;
+      18)
+        setup_global_firefox_proxy
         ;;
       0)
         echo "Exiting the script. Goodbye!"
