@@ -13,6 +13,25 @@
 - Fully update the system, including kernel, security patches, and firmware.
 - Forget a specified WiFi network and schedule a system reboot.
 - Perform all actions in one go.
+- Added Firefox Forced Proxy Management for enhanced security.
+- Added Chrome Url Blocking Management for better control over web access.
+
+## ADDED DNS TOOL (88dns.sh)
+- Added 88dns.sh script to run any script while temporarily changing the DNS settings to 8.8.8.8 then it runs supplied script and then reverts the DNS settings back to original.
+- This is useful for running scripts that require internet access without changing the system's DNS settings permanently.
+- This script make sure that the DNS settings are reverted back to original even the supplied script fails or exits unexpectedly.
+- Usage: `bash 88dns.sh ./script_to_run>` OR `./88dns.sh ./script_to_run`
+- Usage Example: 
+```bash 
+chmod +x 88dns.sh
+bash 88dns.sh ./admin_toolkit.sh
+``` 
+OR  
+```bash 
+chmod +x 88dns.sh
+./88dns.sh ./admin_toolkit.sh
+```
+
 
 ---
 
