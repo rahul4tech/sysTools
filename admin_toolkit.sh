@@ -556,6 +556,60 @@ EOF
   sleep 2
 }
 
+function install_teams_for_linux_for_all_standard_users() {
+  echo "🔄 Refreshing all Snap packages..."
+  sudo snap refresh
+
+  echo "📦 Installing Teams for Linux..."
+  sudo snap install teams-for-linux || echo "✅ Teams-for-Linux already installed."
+
+  echo "🧠 Setting autostart for all standard (non-sudo) users..."
+
+  # Loop through standard users
+  awk -F':' '{ if ($3 >= 1000 && $3 < 65534) print $1 }' /etc/passwd | while read -r user; do
+    if ! groups "$user" | grep -q sudo; then
+      user_home=$(eval echo "~$user")
+      autostart_dir="$user_home/.config/autostart"
+      desktop_file="$autostart_dir/teams-for-linux.desktop"
+
+      echo "➡️  Creating autostart entry for user: $user"
+
+      sudo -u "$user" mkdir -p "$autostart_dir"
+      sudo cp /var/lib/snapd/desktop/applications/teams-for-linux_teams-for-linux.desktop "$desktop_file"
+
+      sudo sed -i '/OnlyShowIn/d' "$desktop_file"
+      sudo sed -i '/X-GNOME-Autostart-enabled/d' "$desktop_file"
+      echo "X-GNOME-Autostart-enabled=true" | sudo tee -a "$desktop_file" > /dev/null
+
+      sudo chown "$user:$user" "$desktop_file"
+      echo "✅ Autostart set for $user"
+    fi
+  done
+}
+
+
+function uninstall_teams_for_linux_for_all_standard_users() {
+  echo "🗑 Uninstalling Teams for Linux..."
+  sudo snap remove teams-for-linux || echo "⚠️ Teams-for-Linux not found or already removed."
+
+  echo "🧹 Removing autostart entries for all standard (non-sudo) users..."
+
+  # Loop through standard users
+  awk -F':' '{ if ($3 >= 1000 && $3 < 65534) print $1 }' /etc/passwd | while read -r user; do
+    if ! groups "$user" | grep -q sudo; then
+      autostart_file=$(eval echo "~$user/.config/autostart/teams-for-linux.desktop")
+
+      if [ -f "$autostart_file" ]; then
+        rm -f "$autostart_file"
+        echo "✅ Removed autostart for $user"
+      else
+        echo "ℹ️ No autostart entry found for $user"
+      fi
+    fi
+  done
+}
+
+
 
 
 
@@ -583,6 +637,8 @@ function display_menu() {
   echo "17) Clear Chrome history for non-admin users"
   echo "18) Set up a globally locked Firefox proxy (APT version)"
   echo "19) Configure Chrome site blocking policy"
+  echo "20) Install Teams for Linux for all standard users"
+  echo "21) Uninstall Teams for Linux and autostart for all standard users"
   echo "0) Exit"
 }
 
@@ -669,6 +725,12 @@ function main() {
         ;;
       19)
         manage_chrome_blocklist
+        ;;
+      20)
+        install_teams_for_linux_for_all_standard_users
+        ;;
+      21)
+        uninstall_teams_for_linux_for_all_standard_users
         ;;
       0)
         echo "Exiting the script. Goodbye!"
